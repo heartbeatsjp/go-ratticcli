@@ -11,7 +11,7 @@ golang RatticCLI for RatticWeb
 Typical usecase : use with [peco](https://github.com/peco/peco)
 
 ```
-rattic list | peco | rattic show --fields=password | pbcopy
+rattic list | peco | rattic show | pbcopy
 ```
 
 # Install

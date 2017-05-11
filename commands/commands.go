@@ -29,9 +29,10 @@ var (
 func init() {
 	ListFlags = []cli.Flag{}
 	ShowFlags = []cli.Flag{
-		cli.StringSliceFlag{
-			Name:  "fields",
-			Usage: "username,password",
+		cli.StringFlag{
+			Name:  "field",
+			Value: "password",
+			Usage: "password",
 		},
 		cli.StringFlag{
 			Name:  "id",
@@ -101,8 +102,6 @@ func ShowAction(c *cli.Context) error {
 		}
 	}
 
-	fields := c.StringSlice("fields")
-
 	// do HTTP list request
 	token := c.GlobalString("token")
 	if token == "" {
@@ -124,13 +123,13 @@ func ShowAction(c *cli.Context) error {
 
 	cred := GetCred(c.GlobalString("endpoint"), c.GlobalString("user"), token, id)
 
-	for _, field := range fields {
-		if strings.ToUpper(field) == "ID" {
-			fmt.Println(cred.ID)
-		}
-		if strings.ToUpper(field) == "PASSWORD" {
-			fmt.Println(cred.Password)
-		}
+	//FIXME need sophisticated code.
+	field := c.String("field")
+	if strings.ToUpper(field) == "ID" {
+		fmt.Print(cred.ID)
+	}
+	if strings.ToUpper(field) == "PASSWORD" {
+		fmt.Print(cred.Password)
 	}
 	return nil
 }

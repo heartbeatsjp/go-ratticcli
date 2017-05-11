@@ -4,14 +4,14 @@ golang RatticCLI for RatticWeb
 
 # Usage
 
-- search: search Cred
+- list: list Cred
 - show: show Cred
 - reload: reload token and local cache
 
 Typical usecase : use with [peco](https://github.com/peco/peco)
 
 ```
-rattic search | peco --exec "rattic show --fields=password" | pbcopy
+rattic list | peco --exec "rattic show --fields=password" | pbcopy
 ```
 
 # Install

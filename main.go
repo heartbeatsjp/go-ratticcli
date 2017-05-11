@@ -37,6 +37,11 @@ func main() {
 			EnvVar: "USER",
 		},
 		cli.StringFlag{
+			Name:   "token",
+			Usage:  "RatticWeb TOKEN",
+			EnvVar: "TOKEN",
+		},
+		cli.StringFlag{
 			Name:   "cache-path",
 			Value:  cachePath,
 			Usage:  "Cache File Path",
@@ -45,10 +50,10 @@ func main() {
 	}
 	app.Commands = []cli.Command{
 		{
-			Name:   "search",
-			Usage:  "search Cred",
-			Action: commands.SearchAction,
-			Flags:  commands.SearchFlags,
+			Name:   "list",
+			Usage:  "list Cred",
+			Action: commands.ListAction,
+			Flags:  commands.ListFlags,
 		},
 		{
 			Name:   "show",

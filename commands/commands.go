@@ -1,9 +1,14 @@
 package commands
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,8 +17,8 @@ import (
 )
 
 var (
-	// SearchFlags are flags of sub command Search
-	SearchFlags []cli.Flag
+	// ListFlags are flags of sub command List
+	ListFlags []cli.Flag
 	// ShowFlags are flags of sub command Show
 	ShowFlags []cli.Flag
 	// ReloadFlags are flags of sub command Reload
@@ -21,7 +26,7 @@ var (
 )
 
 func init() {
-	SearchFlags = []cli.Flag{}
+	ListFlags = []cli.Flag{}
 	ShowFlags = []cli.Flag{
 		cli.StringSliceFlag{
 			Name:  "fileds",
@@ -30,11 +35,30 @@ func init() {
 	ReloadFlags = []cli.Flag{}
 }
 
+// ListResponse HTTP Response
+type ListResponse struct {
+	Meta    ListResponseMeta   `json:"meta"`
+	Objects []ListResponseCred `json:"objects"`
+}
+
+// ListResponseMeta HTTP Response
+type ListResponseMeta struct {
+	Next   string `json:"next"`
+	Limit  int    `json:"limit"`
+	Offset int    `json:"offset"`
+}
+
+// ListResponseCred HTTP Response
+type ListResponseCred struct {
+	ID    int    `json:"id"`
+	Title string `json:"title"`
+}
+
 /*
-SearchAction do HTTP request to search Cred url
+ListAction do HTTP request to list Cred url
 */
-func SearchAction(c *cli.Context) error {
-	cachePath := c.String("cache-path")
+func ListAction(c *cli.Context) error {
+	cachePath := c.GlobalString("cache-path")
 	if CacheExpired(cachePath) {
 		err := ReloadAction(c)
 		if err != nil {
@@ -45,7 +69,8 @@ func SearchAction(c *cli.Context) error {
 	// print cached Creds from Creds Bucket
 	creds := GetCachedCreds(cachePath)
 	for _, cred := range creds {
-		fmt.Println(fmt.Sprintf("%s %s", cred[0], cred[1]))
+		//fmt.Println(fmt.Sprintf("%s %s", cred[0], cred[1]))
+		fmt.Println(cred)
 	}
 
 	return nil
@@ -63,20 +88,26 @@ ReloadAction do re-auth, update token, discard local cache
 */
 func ReloadAction(c *cli.Context) error {
 	var err error
-	cachePath := c.String("cache-path")
+	cachePath := c.GlobalString("cache-path")
 	// Authrize and refresh token
 	// store Token to Config Bucket
 
 	//TODO
 
-	// do HTTP search request
-	// store search results to Creds Bucket
+	// do HTTP list request
+	// store list results to Creds Bucket
 
 	//TODO
-	token := GetCachedToken(cachePath)
-	credLines := GetWebCreds(c.String("endpoint"), c.String("user"), token)
+	token := c.GlobalString("token")
+	if token == "" {
+		token = GetCachedToken(cachePath)
+	}
+
+	now := time.Now()
+	creds := GetWebCreds(c.GlobalString("endpoint"), c.GlobalString("user"), token)
+
 	//store creds
-	err = StoreCreds(cachePath, credLines)
+	err = StoreCreds(cachePath, creds, now)
 	if err != nil {
 		return err
 	}
@@ -90,7 +121,7 @@ func CacheExpired(cachePath string) bool {
 	// get LastUpdated from Config Bucket
 	db, err := bolt.Open(cachePath, 0600, nil)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err, "cache-path:", cachePath)
 	}
 	defer db.Close()
 
@@ -99,6 +130,9 @@ func CacheExpired(cachePath string) bool {
 	err = db.View(func(tx *bolt.Tx) error {
 		var err error
 		b := tx.Bucket([]byte("Config"))
+		if b == nil {
+			return errors.New("Bucket (and cache) does not exist.")
+		}
 		v := b.Get([]byte("LastUpdated"))
 		lastUpdated, err = time.Parse(time.RFC1123Z, string(v))
 		if err != nil {
@@ -108,28 +142,29 @@ func CacheExpired(cachePath string) bool {
 		return nil
 	})
 	if err != nil {
-		log.Fatalln(err)
+		return true
 	}
-	return lastUpdated.Add(86400 * time.Second).After(time.Now())
+	log.Println("LastUpdated:", lastUpdated, " and expired at", lastUpdated.Add(86400*time.Second))
+	return lastUpdated.Add(86400 * time.Second).Before(time.Now())
 }
 
 /*
-GetCreds return creds ( slice of [][]byte{key, value} ) from cache
+GetCachedCreds return creds from cache
 */
-func GetCachedCreds(cachePath string) [][][]byte {
+func GetCachedCreds(cachePath string) []string {
 	db, err := bolt.Open(cachePath, 0600, nil)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer db.Close()
 
-	var creds [][][]byte
+	var creds []string
 	err = db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Creds"))
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			creds = append(creds, [][]byte{k, v})
+			creds = append(creds, fmt.Sprintf("%s %s", string(k), string(v)))
 		}
 
 		return nil
@@ -141,7 +176,7 @@ func GetCachedCreds(cachePath string) [][][]byte {
 }
 
 /*
-GetCachedToken
+GetCachedToken return token
 */
 func GetCachedToken(cachePath string) string {
 	db, err := bolt.Open(cachePath, 0600, nil)
@@ -166,28 +201,115 @@ func GetCachedToken(cachePath string) string {
 }
 
 /*
-GetWebCreds return `Cred.id Cred.title` line from RatticWeb
+GetWebCreds return ... from RatticWeb
 */
-func GetWebCreds(cachePath string) []string {
-	var credLines []string
+func GetWebCreds(endpoint, user, token string) []ListResponseCred {
+	var creds []ListResponseCred
 
-	//TODO
+	var limit int
+	var offset int
+	hasNext := true
+	for hasNext {
+		req, err := BuildHTTPListRequest(endpoint, user, token, limit, offset)
+		if err != nil {
+			log.Fatalln(err)
+		}
 
-	return credLines
+		body, err := DoHTTPRequest(req)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		// parse
+		var listResponse ListResponse
+		err = json.Unmarshal(body, &listResponse)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		creds = append(creds, listResponse.Objects...)
+
+		if listResponse.Meta.Next == "" {
+			hasNext = false
+		} else {
+			limit = listResponse.Meta.Limit
+			offset = listResponse.Meta.Offset + listResponse.Meta.Limit
+		}
+	}
+
+	return creds
 }
 
 /*
-BuildHTTPRequest
+BuildHTTPRequest builds HTTP Request
 */
-func BuildHTTPRequest(user, token, endpoint string) string {
-	//TODO
+func BuildHTTPRequest(endpoint, user, token, path string, queryParams map[string]string) (*http.Request, error) {
+
+	ratticWebURL := fmt.Sprintf("%s/api/v1/%s", strings.Trim(endpoint, "/"), path)
+	req, err := http.NewRequest("GET", ratticWebURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Authorization", fmt.Sprintf("ApiKey %s:%s", user, token))
+	req.Header.Add("Accept", "application/json")
+
+	values := url.Values{}
+	for k, v := range queryParams {
+		values.Add(k, v)
+	}
+
+	req.URL.RawQuery = values.Encode()
+
+	return req, nil
+}
+
+/*
+BuildHTTPListRequest builds HTTP Request to list Creds
+*/
+func BuildHTTPListRequest(endpoint, user, token string, limit, offset int) (*http.Request, error) {
+
+	queryParams := make(map[string]string)
+
+	if limit < 0 {
+		// default
+		limit = 1000
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	queryParams["limit"] = strconv.Itoa(limit)
+	queryParams["offset"] = strconv.Itoa(offset)
+	return BuildHTTPRequest(endpoint, user, token, "cred/", queryParams)
+}
+
+/*
+DoHTTPRequest do HTTP Request and return response body
+*/
+func DoHTTPRequest(req *http.Request) ([]byte, error) {
 	client := &http.Client{Timeout: time.Duration(10) * time.Second}
+	res, err := client.Do(req)
+	if err != nil {
+		return []byte{}, err
+	}
+	defer res.Body.Close()
+
+	log.Println(req, res.Status) //FIXME debug
+	if res.StatusCode != 200 {
+		return []byte{}, errors.New(res.Status)
+	}
+
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return []byte{}, err
+	}
+	return b, err
 }
 
 /*
-StoreCreds
+StoreCreds store creds to cache
 */
-func StoreCreds(cachePath string, lines []string) error {
+func StoreCreds(cachePath string, creds []ListResponseCred, lastUpdated time.Time) error {
 	var err error
 
 	db, err := bolt.Open(cachePath, 0600, nil)
@@ -202,19 +324,19 @@ func StoreCreds(cachePath string, lines []string) error {
 			tx.DeleteBucket([]byte("Creds"))
 		}
 
-		b := tx.CreateBucket([]byte("Creds"))
-		for _, line := range lines {
-			parts := strings.SplitN(line, " ", 2)
-			if len(parts) != 2 {
-				log.Printf("ERROR: Parse response line failed. %s\n", line)
-				continue
-			}
-			err = b.Put([]byte(parts[0]), []byte(parts[1]))
+		b, err := tx.CreateBucket([]byte("Creds"))
+		if err != nil {
+			log.Fatalln(err)
+		}
+		for _, cred := range creds {
+			err = b.Put([]byte(strconv.Itoa(cred.ID)), []byte(cred.Title))
 			if err != nil {
 				log.Printf("ERROR: Put to Bucket failed. %v\n", err)
 			}
-
 		}
+
+		b, err = tx.CreateBucketIfNotExists([]byte("Config"))
+		b.Put([]byte("LastUpdated"), []byte(lastUpdated.Format(time.RFC1123Z)))
 
 		return nil
 	})

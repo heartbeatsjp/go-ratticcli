@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -29,9 +30,15 @@ func init() {
 	ListFlags = []cli.Flag{}
 	ShowFlags = []cli.Flag{
 		cli.StringSliceFlag{
-			Name:  "fileds",
+			Name:  "fields",
 			Usage: "username,password",
-		}}
+		},
+		cli.StringFlag{
+			Name:  "id",
+			Value: "-",
+			Usage: "Cred.id ( - is STDIN)",
+		},
+	}
 	ReloadFlags = []cli.Flag{}
 }
 
@@ -52,6 +59,12 @@ type ListResponseMeta struct {
 type ListResponseCred struct {
 	ID    int    `json:"id"`
 	Title string `json:"title"`
+}
+
+// ShowResponseCred HTTP Response
+type ShowResponseCred struct {
+	ID       int    `json:"id"`
+	Password string `json:"password"`
 }
 
 /*
@@ -80,6 +93,45 @@ func ListAction(c *cli.Context) error {
 ShowAction do HTTP request to fetch Cred details
 */
 func ShowAction(c *cli.Context) error {
+	cachePath := c.GlobalString("cache-path")
+	if CacheExpired(cachePath) {
+		err := ReloadAction(c)
+		if err != nil {
+			return err
+		}
+	}
+
+	fields := c.StringSlice("fields")
+
+	// do HTTP list request
+	token := c.GlobalString("token")
+	if token == "" {
+		token = GetCachedToken(cachePath)
+	}
+
+	var idString string
+	if c.String("id") == "-" {
+		b, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		idString = strings.SplitN(string(b), " ", 2)[0]
+	} else {
+		idString = c.String("id")
+	}
+	id, _ := strconv.Atoi(idString)
+
+	cred := GetCred(c.GlobalString("endpoint"), c.GlobalString("user"), token, id)
+
+	for _, field := range fields {
+		if strings.ToUpper(field) == "ID" {
+			fmt.Println(cred.ID)
+		}
+		if strings.ToUpper(field) == "PASSWORD" {
+			fmt.Println(cred.Password)
+		}
+	}
 	return nil
 }
 
@@ -89,22 +141,19 @@ ReloadAction do re-auth, update token, discard local cache
 func ReloadAction(c *cli.Context) error {
 	var err error
 	cachePath := c.GlobalString("cache-path")
+
+	//TODO
 	// Authrize and refresh token
 	// store Token to Config Bucket
 
-	//TODO
-
 	// do HTTP list request
-	// store list results to Creds Bucket
-
-	//TODO
 	token := c.GlobalString("token")
 	if token == "" {
 		token = GetCachedToken(cachePath)
 	}
 
 	now := time.Now()
-	creds := GetWebCreds(c.GlobalString("endpoint"), c.GlobalString("user"), token)
+	creds := GetCreds(c.GlobalString("endpoint"), c.GlobalString("user"), token)
 
 	//store creds
 	err = StoreCreds(cachePath, creds, now)
@@ -201,9 +250,9 @@ func GetCachedToken(cachePath string) string {
 }
 
 /*
-GetWebCreds return ... from RatticWeb
+GetCreds return ... from RatticWeb
 */
-func GetWebCreds(endpoint, user, token string) []ListResponseCred {
+func GetCreds(endpoint, user, token string) []ListResponseCred {
 	var creds []ListResponseCred
 
 	var limit int
@@ -237,6 +286,31 @@ func GetWebCreds(endpoint, user, token string) []ListResponseCred {
 	}
 
 	return creds
+}
+
+/*
+GetCred return ... from RatticWeb
+*/
+func GetCred(endpoint, user, token string, id int) ShowResponseCred {
+	var cred ShowResponseCred
+
+	req, err := BuildHTTPShowRequest(endpoint, user, token, id)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	body, err := DoHTTPRequest(req)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	// parse
+	err = json.Unmarshal(body, &cred)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	return cred
 }
 
 /*
@@ -281,6 +355,14 @@ func BuildHTTPListRequest(endpoint, user, token string, limit, offset int) (*htt
 	queryParams["limit"] = strconv.Itoa(limit)
 	queryParams["offset"] = strconv.Itoa(offset)
 	return BuildHTTPRequest(endpoint, user, token, "cred/", queryParams)
+}
+
+/*
+BuildHTTPShowRequest builds HTTP Request to list Creds
+*/
+func BuildHTTPShowRequest(endpoint, user, token string, id int) (*http.Request, error) {
+
+	return BuildHTTPRequest(endpoint, user, token, fmt.Sprintf("cred/%d/", id), make(map[string]string))
 }
 
 /*

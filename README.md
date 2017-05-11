@@ -11,7 +11,7 @@ golang RatticCLI for RatticWeb
 Typical usecase : use with [peco](https://github.com/peco/peco)
 
 ```
-rattic list | peco --exec "rattic show --fields=password" | pbcopy
+rattic list | peco | rattic show --fields=password | pbcopy
 ```
 
 # Install
@@ -30,6 +30,7 @@ curl -L <release_url>  # TODO
 
 - env `ENDPOINT` / option `--endpoint` (default: `https://localhost` )
 - env `USER` / option `--user` (default: local username)
+- env `TOKEN` / option `--token`
 
 # Build
 

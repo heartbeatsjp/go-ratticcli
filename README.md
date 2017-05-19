@@ -2,6 +2,8 @@
 
 golang RatticCLI for RatticWeb
 
+**WARNING: This product is quite unstable now**
+
 # Usage
 
 - list: list Cred

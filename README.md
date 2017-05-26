@@ -1,6 +1,6 @@
 # go-ratticcli
 
-golang RatticCLI for RatticWeb
+CLI for RatticWeb
 
 **WARNING: This product is quite unstable now**
 
@@ -8,7 +8,6 @@ golang RatticCLI for RatticWeb
 
 - list: list Cred
 - show: show Cred
-- reload: reload token and local cache
 
 Typical usecase : use with [peco](https://github.com/peco/peco)
 
@@ -30,9 +29,9 @@ curl -L <release_url>  # TODO
 
 # Configuration
 
-- env `ENDPOINT` / option `--endpoint` (default: `https://localhost` )
-- env `USER` / option `--user` (default: local username)
-- env `TOKEN` / option `--token`
+- env `RATTIC_ENDPOINT` / option `--endpoint` (default: `https://localhost` )
+- env `RATTIC_USER` / option `--user` (default: local username)
+- env `RATTIC_TOKEN` / option `--token`
 
 # Build
 

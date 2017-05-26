@@ -13,8 +13,8 @@ var Version string
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "boom"
-	app.Usage = "make an explosive entrance"
+	app.Name = "rattic"
+	app.Usage = "CLI for RatticWeb"
 	app.Version = Version
 
 	var myUsername string
@@ -37,7 +37,7 @@ func main() {
 			Name:   "user",
 			Value:  myUsername,
 			Usage:  "Username",
-			EnvVar: "USER",
+			EnvVar: "RATTIC_USER",
 		},
 		cli.StringFlag{
 			Name:   "token",

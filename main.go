@@ -31,7 +31,7 @@ func main() {
 			Name:   "endpoint",
 			Value:  "https://localhost",
 			Usage:  "RatticWeb URL",
-			EnvVar: "ENDPOINT",
+			EnvVar: "RATTIC_ENDPOINT",
 		},
 		cli.StringFlag{
 			Name:   "user",
@@ -42,13 +42,13 @@ func main() {
 		cli.StringFlag{
 			Name:   "token",
 			Usage:  "RatticWeb TOKEN",
-			EnvVar: "TOKEN",
+			EnvVar: "RATTIC_TOKEN",
 		},
 		cli.StringFlag{
 			Name:   "cache-path",
 			Value:  cachePath,
 			Usage:  "Cache File Path",
-			EnvVar: "CACHE_PATH",
+			EnvVar: "RATTIC_CACHE_PATH",
 		},
 	}
 	app.Commands = []cli.Command{

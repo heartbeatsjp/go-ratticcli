@@ -1,0 +1,39 @@
+box: "tcnksm/gox:1.7"
+build: 
+  steps:
+    - wercker/setup-go-workspace:
+        package-dir: github.com/heartbeatsjp/go-ratticcli
+    - script: 
+        name: "install glide"
+        code: |
+            export GLIDE_VERSION="v0.12.3"
+            curl -L https://github.com/Masterminds/glide/releases/download/${GLIDE_VERSION}/glide-${GLIDE_VERSION}-linux-amd64.tar.gz | tar zxf -
+            install -d -m 755 ${WERCKER_CACHE_DIR:?}/bin
+            install -m 755 linux-amd64/glide ${WERCKER_CACHE_DIR:?}/bin/glide
+            export PATH=${WERCKER_CACHE_DIR:?}/bin:$PATH
+    - script: 
+        name: "glide install"
+        code: "glide install"
+    - script: 
+        name: "go test"
+        code: "go test $(glide novendor)"
+    - tcnksm/gox:
+        os: "darwin linux windows"
+        arch: "amd64"
+        ldflags: "-X main.Version=$(git describe --tags)"
+    - script:
+        name: "archive"
+        code: |
+            DIST_DIR="${WERCKER_OUTPUT_DIR:?}/dist"
+            mkdir ${DIST_DIR:?} || true
+            cd ${WERCKER_OUTPUT_DIR:?}/pkg
+            find . -type f | while read line; do mv $line $(echo $line | sed "s/go-ratticcli/rattic/"); done
+            find . -mindepth 1 -maxdepth 1 -type d | while read line; do tar zcfp ${DIST_DIR:?}/$line.tar.gz ${line:?} ; done
+            cd ${DIST_DIR:?}
+            md5sum * > MD5SUM
+deploy:
+    steps: 
+        - tcnksm/ghr: 
+            input: dist
+            replace: true
+            token: $GITHUB_TOKEN

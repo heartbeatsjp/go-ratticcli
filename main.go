@@ -9,10 +9,13 @@ import (
 	"gopkg.in/urfave/cli.v1"
 )
 
+var Version string
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "boom"
 	app.Usage = "make an explosive entrance"
+	app.Version = Version
 
 	var myUsername string
 	me, err := user.Current()

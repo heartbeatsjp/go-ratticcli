@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -73,10 +74,11 @@ ListAction do HTTP request to list Cred url
 */
 func ListAction(c *cli.Context) error {
 	cachePath := c.GlobalString("cache-path")
+
 	if CacheExpired(cachePath) {
 		err := ReloadAction(c)
 		if err != nil {
-			return err
+			log.Println(err)
 		}
 	}
 
@@ -192,7 +194,7 @@ func CacheExpired(cachePath string) bool {
 	if err != nil {
 		return true
 	}
-	log.Println("LastUpdated:", lastUpdated, " and expired at", lastUpdated.Add(86400*time.Second))
+	//log.Println("LastUpdated:", lastUpdated, " and expired at", lastUpdated.Add(86400*time.Second)) //FIXME debug
 	return lastUpdated.Add(86400 * time.Second).Before(time.Now())
 }
 
@@ -220,6 +222,13 @@ func GetCachedCreds(cachePath string) []string {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	// sort id with numeric order
+	sort.Slice(creds, func(i, j int) bool {
+		iID, _ := strconv.Atoi(strings.Split(creds[i], " ")[0])
+		jID, _ := strconv.Atoi(strings.Split(creds[j], " ")[0])
+		return iID < jID
+	})
 	return creds
 }
 
@@ -375,7 +384,7 @@ func DoHTTPRequest(req *http.Request) ([]byte, error) {
 	}
 	defer res.Body.Close()
 
-	log.Println(req, res.Status) //FIXME debug
+	//log.Println(req, res.Status) //FIXME debug
 	if res.StatusCode != 200 {
 		return []byte{}, errors.New(res.Status)
 	}

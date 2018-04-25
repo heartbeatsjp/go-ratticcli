@@ -36,8 +36,8 @@ curl -L <release_url>  # TODO
 # Build
 
 ```
-glide install
-go build -o rattic
+dep ensure
+go build -o rattic -ldflags "-w -s"
 ```
 
 # Datastore

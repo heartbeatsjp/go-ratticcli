@@ -6,14 +6,21 @@ CLI for RatticWeb
 
 # Usage
 
-- list: list Cred
+- list: list Creds
 - show: show Cred
+- reload: reload Creds
 
 Typical usecase : use with [peco](https://github.com/peco/peco)
 
 ```
 rattic list | peco | rattic show | pbcopy
 ```
+
+CLI to clipbard tools
+
+- Windows: `clip`
+- MacOSX: `pbcopy`
+- Linux: `xsel --clipbard --input`
 
 # Install
 
@@ -32,8 +39,18 @@ curl -L <release_url>  # TODO
 - env `RATTIC_ENDPOINT` / option `--endpoint` (default: `https://localhost` )
 - env `RATTIC_USER` / option `--user` (default: local username)
 - env `RATTIC_TOKEN` / option `--token`
+- env `RATTIC_CACHE_TTL` / option `--cache-ttl` (default: 86400 (sec))
 
 # Build
+
+Recommend: use `wercker` cli.
+( binaries are put on `.wercker/latest/output/` )
+
+```
+wercker build --artifacts
+```
+
+If build by hand localy
 
 ```
 dep ensure
@@ -45,7 +62,7 @@ go build -o rattic -ldflags "-w -s"
 boltdb
 
 - Bucket: Config
-    - Key: `Token` , `LastUpdated`
+    - Key: `LastUpdated`
 - Bucket: Creds
     - Key: `Cred.id`
     - Value: `Cred.title`

@@ -9,6 +9,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 )
 
+// Version description
 var Version string
 
 func main() {
@@ -49,6 +50,12 @@ func main() {
 			Value:  cachePath,
 			Usage:  "Cache File Path",
 			EnvVar: "RATTIC_CACHE_PATH",
+		},
+		cli.IntFlag{
+			Name:   "cache-ttl",
+			Value:  86400,
+			Usage:  "cache ttl(sec)",
+			EnvVar: "RATTIC_CACHE_TTL",
 		},
 	}
 	app.Commands = []cli.Command{

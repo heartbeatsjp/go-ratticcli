@@ -74,8 +74,9 @@ ListAction do HTTP request to list Cred url
 */
 func ListAction(c *cli.Context) error {
 	cachePath := c.GlobalString("cache-path")
+	cacheTTL := c.GlobalInt("cache-ttl")
 
-	if CacheExpired(cachePath) {
+	if CacheExpired(cachePath, cacheTTL) {
 		err := ReloadAction(c)
 		if err != nil {
 			log.Println(err)
@@ -97,7 +98,9 @@ ShowAction do HTTP request to fetch Cred details
 */
 func ShowAction(c *cli.Context) error {
 	cachePath := c.GlobalString("cache-path")
-	if CacheExpired(cachePath) {
+	cacheTTL := c.GlobalInt("cache-ttl")
+
+	if CacheExpired(cachePath, cacheTTL) {
 		err := ReloadAction(c)
 		if err != nil {
 			return err
@@ -107,7 +110,7 @@ func ShowAction(c *cli.Context) error {
 	// do HTTP list request
 	token := c.GlobalString("token")
 	if token == "" {
-		token = GetCachedToken(cachePath)
+		return fmt.Errorf("token is required")
 	}
 
 	var idString string
@@ -143,14 +146,10 @@ func ReloadAction(c *cli.Context) error {
 	var err error
 	cachePath := c.GlobalString("cache-path")
 
-	//TODO
-	// Authrize and refresh token
-	// store Token to Config Bucket
-
 	// do HTTP list request
 	token := c.GlobalString("token")
 	if token == "" {
-		token = GetCachedToken(cachePath)
+		return fmt.Errorf("token is required")
 	}
 
 	now := time.Now()
@@ -167,7 +166,7 @@ func ReloadAction(c *cli.Context) error {
 /*
 CacheExpired return cache is expired or not
 */
-func CacheExpired(cachePath string) bool {
+func CacheExpired(cachePath string, cacheTTL int) bool {
 	// get LastUpdated from Config Bucket
 	db, err := bolt.Open(cachePath, 0600, nil)
 	if err != nil {
@@ -181,7 +180,7 @@ func CacheExpired(cachePath string) bool {
 		var err error
 		b := tx.Bucket([]byte("Config"))
 		if b == nil {
-			return errors.New("Bucket (and cache) does not exist.")
+			return errors.New("Bucket (and cache) does not exist")
 		}
 		v := b.Get([]byte("LastUpdated"))
 		lastUpdated, err = time.Parse(time.RFC1123Z, string(v))
@@ -194,8 +193,11 @@ func CacheExpired(cachePath string) bool {
 	if err != nil {
 		return true
 	}
-	//log.Println("LastUpdated:", lastUpdated, " and expired at", lastUpdated.Add(86400*time.Second)) //FIXME debug
-	return lastUpdated.Add(86400 * time.Second).Before(time.Now())
+	ttlOffset := 0
+	if cacheTTL > 0 {
+		ttlOffset = cacheTTL
+	}
+	return lastUpdated.Add(time.Duration(ttlOffset) * time.Second).Before(time.Now())
 }
 
 /*
@@ -230,31 +232,6 @@ func GetCachedCreds(cachePath string) []string {
 		return iID < jID
 	})
 	return creds
-}
-
-/*
-GetCachedToken return token
-*/
-func GetCachedToken(cachePath string) string {
-	db, err := bolt.Open(cachePath, 0600, nil)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer db.Close()
-
-	var token string
-	err = db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("Config"))
-		v := b.Get([]byte("Token"))
-		token = string(v)
-
-		return nil
-	})
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	return token
 }
 
 /*

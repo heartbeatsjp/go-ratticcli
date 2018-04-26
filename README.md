@@ -2,7 +2,11 @@
 
 CLI for RatticWeb
 
-**WARNING: This product is quite unstable now**
+RatticWeb is Password Management for Humans.
+
+Strongly recommend to use fork [netmarkjp/RatticWeb](https://github.com/netmarkjp/RatticWeb).
+
+Original RatticWeb is not maintained, but netmarkjp fork is still maintaned.
 
 # Usage
 

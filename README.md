@@ -26,15 +26,31 @@ CLI to clipbard tools
 
 # Install
 
+## local build
+
 ```
 go get github.com/heartbeatsjp/go-ratticcli
 ```
 
 or
 
+## Use pre-built binary
+
+MacOSX
+
 ```
-curl -L <release_url>  # TODO
+curl -L https://github.com/heartbeatsjp/go-ratticcli/releases/download/release/darwin_amd64.tar.gz | tar zxf - && install -m 755  ./darwin_amd64/rattic /usr/local/bin/rattic
 ```
+
+Linux
+
+```
+curl -L https://github.com/heartbeatsjp/go-ratticcli/releases/download/release/linux_amd64.tar.gz  | tar zxf - && install -m 755  ./linux_amd64/rattic  /usr/local/bin/rattic
+```
+
+Windows
+
+https://github.com/heartbeatsjp/go-ratticcli/releases/download/release/windows_amd64.tar.gz
 
 # Configuration
 

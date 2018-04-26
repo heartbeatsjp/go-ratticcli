@@ -42,21 +42,11 @@ or
 
 ## Use pre-built binary
 
-MacOSX
+Download from [releases page](https://github.com/heartbeatsjp/go-ratticcli/releases)
 
-```
-curl -L https://github.com/heartbeatsjp/go-ratticcli/releases/download/release/darwin_amd64.tar.gz | tar zxf - && install -m 755  ./darwin_amd64/rattic /usr/local/bin/rattic
-```
-
-Linux
-
-```
-curl -L https://github.com/heartbeatsjp/go-ratticcli/releases/download/release/linux_amd64.tar.gz  | tar zxf - && install -m 755  ./linux_amd64/rattic  /usr/local/bin/rattic
-```
-
-Windows
-
-https://github.com/heartbeatsjp/go-ratticcli/releases/download/release/windows_amd64.tar.gz
+- Windows: windows_amd64.tar.gz
+- MacOSX: darwin_amd64.tar.gz
+- Linux: linux_amd64.tar.gz
 
 # Configuration
 

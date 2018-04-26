@@ -1,5 +1,7 @@
 # go-ratticcli
 
+[![wercker status](https://app.wercker.com/status/079626343f674daa3859a61ccdb3c22b/s/ "wercker status")](https://app.wercker.com/project/byKey/079626343f674daa3859a61ccdb3c22b)
+
 CLI for RatticWeb
 
 RatticWeb is Password Management for Humans.

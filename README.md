@@ -6,9 +6,11 @@ CLI for RatticWeb
 
 # Usage
 
-- list: list Creds
-- show: show Cred
-- reload: reload Creds
+- `list`: list Creds
+    - If cache expired, reload runs in background. While fetching new cred(for cache), command will not exit.
+    - If you never want to use stole cache, run `reload` just before `list`
+- `show`: show Cred
+- `reload`: reload Creds
 
 Typical usecase : use with [peco](https://github.com/peco/peco)
 

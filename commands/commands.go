@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -76,11 +77,16 @@ func ListAction(c *cli.Context) error {
 	cachePath := c.GlobalString("cache-path")
 	cacheTTL := c.GlobalInt("cache-ttl")
 
+	var wg sync.WaitGroup
 	if CacheExpired(cachePath, cacheTTL) {
-		err := ReloadAction(c)
-		if err != nil {
-			log.Println(err)
-		}
+		wg.Add(1)
+		go func() {
+			err := ReloadAction(c)
+			if err != nil {
+				log.Println(err)
+			}
+			wg.Done()
+		}()
 	}
 
 	// print cached Creds from Creds Bucket
@@ -89,6 +95,7 @@ func ListAction(c *cli.Context) error {
 		//fmt.Println(fmt.Sprintf("%s %s", cred[0], cred[1]))
 		fmt.Println(cred)
 	}
+	wg.Wait()
 
 	return nil
 }
@@ -97,15 +104,6 @@ func ListAction(c *cli.Context) error {
 ShowAction do HTTP request to fetch Cred details
 */
 func ShowAction(c *cli.Context) error {
-	cachePath := c.GlobalString("cache-path")
-	cacheTTL := c.GlobalInt("cache-ttl")
-
-	if CacheExpired(cachePath, cacheTTL) {
-		err := ReloadAction(c)
-		if err != nil {
-			return err
-		}
-	}
 
 	// do HTTP list request
 	token := c.GlobalString("token")
@@ -128,7 +126,6 @@ func ShowAction(c *cli.Context) error {
 
 	cred := GetCred(c.GlobalString("endpoint"), c.GlobalString("user"), token, id)
 
-	//FIXME need sophisticated code.
 	field := c.String("field")
 	if strings.ToUpper(field) == "ID" {
 		fmt.Print(cred.ID)
